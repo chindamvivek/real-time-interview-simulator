@@ -1,0 +1,11 @@
+# Required packages for the backend
+# Install with: pip install -r requirements.txt
+
+fastapi
+uvicorn[standard]
+python-multipart
+pdfplumber
+python-docx
+google-genai
+websockets
+python-dotenv

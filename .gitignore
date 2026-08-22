@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Environment variables & secrets (NEVER commit these)
+.env
+.env.local
+.env.*.local
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node & Next.js (for frontend)
+node_modules/
+.next/
+out/
+build/
+dist/
+.vercel
+
+# Logs & temp files
+*.log
+tmp/
