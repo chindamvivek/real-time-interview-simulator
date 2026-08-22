@@ -29,31 +29,33 @@ Following a collaborative protocol where **I (AI) build a feature → user revie
 - `backend/requirements.txt` — All backend dependencies pinned by name.
 - `backend/.env.example` — Template for environment variables (safe to commit, actual `.env` must be gitignored).
 
-#### By User (Session 1)
-- `backend/services/resume_parser.py` — Initial text extraction from PDF (pdfplumber) and DOCX (python-docx), plus a `remove_contact_info()` function using regex.
+#### By User (Session 1 & 2)
+- Initial attempt at `backend/services/resume_parser.py` (PDF and DOCX parsing + PII regex).
+- Git repository initialization and initial commit.
 
-**Code review of user's `resume_parser.py`:**
-- ✅ Correct use of `.lower().endswith()` for file extension checking
-- ✅ Good separation of concerns (extract vs. redact are separate functions)
-- 🐛 `import re` is missing — `remove_contact_info` will crash
-- 🐛 `pdfplumber.page.extract_text()` can return `None` on scanned PDFs — needs a guard
-- 🐛 `parse_resume` returns `None` for unsupported file types instead of raising an error
-- ❌ `result += string` in a loop — use list + `join` instead (more Pythonic)
-- ❌ DOCX block has inconsistent indentation
+**Code Review of User's `resume_parser.py` Attempt:**
+- ✅ **Good:** Added `import re`, added `if page.extract_text() is not None:`, added `raise ValueError("Unsupported file type")`, used `"\n".join(result)` for PDFs.
+- 🐛 **Bug Identified:** In the `.docx` branch, `result` (initialized as a `list`) was mutated with string concatenation `result += paragraph.text + '\n'`. In Python, adding a string to a list appends each character as an item, returning a list of single characters rather than a string!
+- 💡 **Best Practice:** Use list comprehensions for cleaner paragraph filtering: `[p.text for p in doc.paragraphs if p.text and p.text.strip()]`.
+
+#### By AI (Session 2 — Feature 2)
+- Refactored `backend/services/resume_parser.py`:
+  - `extract_raw_text(file_path)`: Fixed list vs string bug in DOCX, cleaned up text extraction for PDF and DOCX.
+  - `remove_contact_info(text)`: Replaced regex matches with explicit `[REDACTED_EMAIL]` and `[REDACTED_PHONE]` tags instead of blank spaces.
+  - `parse_resume_to_json(file_path)`: Integrated `google-genai` SDK with `response_schema=ResumeData` to directly return validated Pydantic object parsed from resume text via Gemini LLM.
 
 ---
 
 ### Current State / Where We Left Off
 
 **Backend — In Progress**
-- [x] `.venv` created, all packages installed
-- [x] `services/resume_parser.py` — user-written, needs bug fixes (see review above)
+- [x] `.venv` created, packages installed
+- [x] `.gitignore` populated, Git repository initialized & committed
 - [x] `config.py` — done
 - [x] `models/resume.py` — done
-- [x] `requirements.txt` — done
-- [x] `.env.example` — done
-- [ ] `services/resume_parser.py` — user's next task: fix bugs from review
-- [ ] `services/session_manager.py`
+- [x] `requirements.txt` & `.env.example` — done
+- [x] `services/resume_parser.py` — completed (extract + redact PII + Gemini structured extraction)
+- [ ] `services/session_manager.py` — user's next task!
 - [ ] `services/interview_engine.py`
 - [ ] `services/feedback_generator.py`
 - [ ] `routers/resume.py`
@@ -62,8 +64,6 @@ Following a collaborative protocol where **I (AI) build a feature → user revie
 - [ ] `main.py`
 
 **Frontend** — Not started yet
-
-**Git** — Initialized, `.gitignore` created and populated.
 
 ---
 
