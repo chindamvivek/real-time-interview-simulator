@@ -3,29 +3,31 @@ import docx
 import pdfplumber
 from google import genai
 from google.genai import types
-
+import io
 from backend.config import GEMINI_API_KEY, GEMINI_MODEL
 from backend.models.resume import ResumeData
 
 
-def extract_raw_text(file_path: str) -> str:
+def extract_raw_text(file_stream: io.BytesIO, filename: str) -> str:
     """
-    Extracts raw text from a PDF or DOCX file.
+    Extracts raw text from a PDF or DOCX file stream.
     Raises ValueError for unsupported file types or unreadable files.
-    """
-    file_path_lower = file_path.lower()
 
-    if file_path_lower.endswith(".pdf"):
+    Args:
+        file_stream: In-memory file stream (io.BytesIO) created from uploaded bytes.
+        filename:    Original filename used to detect file type (.pdf or .docx).
+    """
+    if filename.lower().endswith(".pdf"):
         pages_text = []
-        with pdfplumber.open(file_path) as pdf:
+        with pdfplumber.open(file_stream) as pdf:
             for page in pdf.pages:
-                text = page.extract_text(x_tolerance=2)
-                if text:  # guard: extract_text() returns None on scanned/image PDFs
-                    pages_text.append(text)
+                page_text = page.extract_text(x_tolerance=2)
+                if page_text:  # guard: returns None on scanned/image-only PDFs
+                    pages_text.append(page_text)
         return "\n".join(pages_text)
 
-    elif file_path_lower.endswith(".docx"):
-        doc = docx.Document(file_path)
+    elif filename.lower().endswith(".docx"):
+        doc = docx.Document(file_stream)
         paragraphs_text = [
             p.text for p in doc.paragraphs if p.text and p.text.strip()
         ]
@@ -33,7 +35,7 @@ def extract_raw_text(file_path: str) -> str:
 
     else:
         raise ValueError(
-            f"Unsupported file type for '{file_path}'. Only .pdf and .docx are supported."
+            f"Unsupported file type '{filename}'. Only .pdf and .docx are supported."
         )
 
 
@@ -60,7 +62,7 @@ def remove_contact_info(text: str) -> str:
     return text
 
 
-def parse_resume_to_json(file_path: str) -> ResumeData:
+def parse_resume_to_json(file_stream: io.BytesIO, filename: str) -> ResumeData:
     """
     Full parsing pipeline:
     1. Extract raw text from file (PDF/DOCX)
@@ -69,7 +71,7 @@ def parse_resume_to_json(file_path: str) -> ResumeData:
     4. Return validated ResumeData Pydantic instance with fallback
     """
     # Step 1: Extract text
-    raw_text = extract_raw_text(file_path)
+    raw_text = extract_raw_text(file_stream, filename)
     if not raw_text.strip():
         raise ValueError("The uploaded document contains no readable text.")
 
