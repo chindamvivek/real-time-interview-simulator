@@ -123,23 +123,81 @@ return response.text.strip()
 
 ---
 
+## Session 4 (2026-08-26 to 2026-08-28) — Feedback Generator & Resume Router
+
+### By User — `feedback_generator.py` (first attempt)
+- ✅ Correct schema definitions (`QuestionFeedback`, `FeedbackReport`)
+- ✅ `response_schema=FeedbackReport`, `temperature=0.2`
+- 🐛 `text_history` not initialized before loop — `NameError` crash
+- 🐛 `msg["role"] = "Interviewer"` mutated session data directly — corrupts future session reads
+- ❌ Prompt had bullet point formatting instructions — contradictory with `response_schema` (Gemini outputs JSON, not prose bullets)
+- ❌ No fallback for `response.parsed` being `None`
+
+**After fixes:**
+- `text_history = ""` initialized before loop
+- Role label read into local `label` variable — session data never mutated
+- Prompt cleaned to plain instructions only
+- `response_mime_type="application/json"` added
+- Fallback `FeedbackReport.model_validate_json(response.text)` added
+
+### Final `feedback_generator.py` Functions
+- `generate_feedback(session_id)` → formats conversation history as labelled transcript → calls Gemini with `response_schema=FeedbackReport` → returns structured `FeedbackReport` Pydantic object
+
+---
+
+### By User — `routers/resume.py` (iterative implementation)
+
+Multiple rounds of review and fixes. Key lessons learned:
+
+| Bug | Fix |
+|---|---|
+| `content_types` (wrong) | `content_type` (correct FastAPI attribute name) |
+| `FastAPI` imported but unused | Removed |
+| `File`, `Form` not imported | Added to fastapi imports |
+| `io` not imported | Added |
+| `contents` vague name | Renamed to `file_bytes` |
+| `in_memory_file` vague name | Renamed to `file_stream` |
+| `UploadFile` used as function name | Renamed to `upload_resume` (naming conflict with FastAPI type) |
+| `Form(None)` | Changed to `Form("")` — empty string is cleaner default |
+| `parse_resume_to_json(file)` | Fixed to `parse_resume_to_json(file_stream, file.filename)` |
+| `create_session(resume_data,...)` | Fixed to `create_session(parsed_resume,...)` — correct variable |
+| `parse_resume.model_dump()` | Fixed to `parsed_resume.model_dump()` — typo |
+| `seek/tell` approach for size check | Replaced with `len(await file.read())` — simpler |
+| Error message hardcoded "5 MB" | Changed to use `MAX_FILE_SIZE_MB` variable from config |
+
+**Key learning — `io.BytesIO`:**
+- `pdfplumber` and `python-docx` accept file-like objects, not just file paths
+- `io.BytesIO(bytes)` wraps raw bytes into a stream object that behaves like a file
+- No temp file needed — faster and cleaner
+
+**Key learning — resume_parser.py signature changed:**
+- `extract_raw_text(file_path: str)` → `extract_raw_text(file_stream: io.BytesIO, filename: str)`
+- File type detection moved to `filename.lower().endswith()` instead of path-based check
+- `page_text` renamed from vague `text` for clarity inside the PDF loop
+
+---
+
 ## Current State / Where We Left Off
 
 **Backend — In Progress**
 - [x] `config.py` — done
 - [x] `models/resume.py` — done
 - [x] `requirements.txt` — done
-- [x] `services/resume_parser.py` — done
+- [x] `models/__init__.py` — done
+- [x] `services/__init__.py` — done
+- [x] `routers/__init__.py` — done
+- [x] `services/resume_parser.py` — done (accepts BytesIO + filename)
 - [x] `services/session_manager.py` — done
 - [x] `services/interview_engine.py` — done
-- [ ] `services/feedback_generator.py` ← **USER'S NEXT TASK**
-- [ ] `routers/resume.py`
-- [ ] `routers/interview.py`
-- [ ] `routers/websocket.py`
-- [ ] `main.py`
+- [x] `services/feedback_generator.py` — done
+- [x] `routers/resume.py` — done (`POST /resume/upload`)
+- [x] `routers/interview.py` — done (`POST /interview/start`, `/answer`, `/feedback`)
+- [ ] `main.py` ← **NEXT** (your task)
+
+**Note:** WebSocket router (`websocket.py`) deferred — will be built as part of frontend integration phase when real-time audio is wired up.
 
 **Frontend** — Not started yet
 
-**Git** — Connected to GitHub. Repo: `https://github.com/chindamvivek/real-time-interview-simulator`
+**Git** — All pushed to GitHub. Repo: `https://github.com/chindamvivek/real-time-interview-simulator`
 
 ---
