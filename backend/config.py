@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env file if it exists
-load_dotenv()
+# Resolve .env path relative to this file (backend/.env)
+# This works regardless of where uvicorn is launched from (project root or backend/)
+_env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 # --- Gemini LLM Config ---
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")

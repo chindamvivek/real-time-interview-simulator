@@ -177,27 +177,71 @@ Multiple rounds of review and fixes. Key lessons learned:
 
 ---
 
+## Session 5 (2026-09-05) — main.py, Testing & Prompt Tuning
+
+### By User — `backend/main.py`
+First attempt had 3 typos (all silent bugs, not crashes):
+- `backend.router.interview` → `backend.routers.interview` (missing `s` — crash)
+- `allow_creadentials` → `allow_credentials` (typo — CORS silently broken)
+- `allow_method` → `allow_methods` (missing `s` — CORS silently broken)
+
+After fixes — `main.py` is complete:
+- `validate_config()` called before app creation
+- `CORSMiddleware` registered with `ALLOWED_ORIGINS` from config
+- Both routers registered under `/api` prefix
+- Health check at `GET /`
+
+### `backend/__init__.py` Created
+Required for Python to treat `backend/` as a package when uvicorn is launched from the project root. Without it: `ModuleNotFoundError: No module named 'backend'`.
+
+### `config.py` — `load_dotenv()` path fix
+Original `load_dotenv()` only searched the current working directory. When running from project root, `.env` in `backend/` wasn't found. Fixed using:
+```python
+_env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=_env_path)
+```
+`Path(__file__).parent` always resolves to `backend/` regardless of where uvicorn is launched from.
+
+### Endpoint Testing Results
+All 4 endpoints tested via FastAPI `/docs`:
+
+| Endpoint | Status | Notes |
+|---|---|---|
+| `POST /api/resume/upload` | ✅ Working | Returns `session_id` + parsed `resume_data` |
+| `POST /api/interview/start` | ✅ Working | AI introduced itself as `[Your Name]` — fixed by adding `named Alex` to system prompt |
+| `POST /api/interview/answer` | ✅ Working | 422 errors were caused by pasting multiline strings in Swagger UI (invalid JSON) — not a code bug |
+| `POST /api/interview/feedback` | ✅ Working | Returns structured `FeedbackReport` |
+
+### AI Response Issues Observed
+User conducted full interview test and found issues with AI response quality. Detailed findings documented in 2 separate documents to be reviewed next session. Changes will likely affect `interview_engine.py` (system prompt tuning) and/or `feedback_generator.py` (feedback prompt tuning).
+
+---
+
 ## Current State / Where We Left Off
 
-**Backend — In Progress**
-- [x] `config.py` — done
+**Backend — Complete (pending prompt tuning)**
+- [x] `config.py` — done (load_dotenv path fix applied)
 - [x] `models/resume.py` — done
 - [x] `requirements.txt` — done
-- [x] `models/__init__.py` — done
-- [x] `services/__init__.py` — done
-- [x] `routers/__init__.py` — done
-- [x] `services/resume_parser.py` — done (accepts BytesIO + filename)
+- [x] `backend/__init__.py` — done
+- [x] `models/__init__.py`, `services/__init__.py`, `routers/__init__.py` — done
+- [x] `services/resume_parser.py` — done
 - [x] `services/session_manager.py` — done
-- [x] `services/interview_engine.py` — done
-- [x] `services/feedback_generator.py` — done
-- [x] `routers/resume.py` — done (`POST /resume/upload`)
-- [x] `routers/interview.py` — done (`POST /interview/start`, `/answer`, `/feedback`)
-- [ ] `main.py` ← **NEXT** (your task)
-
-**Note:** WebSocket router (`websocket.py`) deferred — will be built as part of frontend integration phase when real-time audio is wired up.
+- [x] `services/interview_engine.py` — done (prompt tuning pending)
+- [x] `services/feedback_generator.py` — done (prompt tuning pending)
+- [x] `routers/resume.py` — done
+- [x] `routers/interview.py` — done
+- [x] `main.py` — done
+- [ ] Prompt tuning — `interview_engine.py` + `feedback_generator.py` ← **NEXT** (pending user's observation documents)
+- [ ] `routers/websocket.py` — deferred to frontend phase
 
 **Frontend** — Not started yet
 
-**Git** — All pushed to GitHub. Repo: `https://github.com/chindamvivek/real-time-interview-simulator`
+**Server startup command (always from project root):**
+```bash
+uvicorn backend.main:app --reload
+```
+
+**Git** — Repo: `https://github.com/chindamvivek/real-time-interview-simulator`
 
 ---
