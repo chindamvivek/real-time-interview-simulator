@@ -217,22 +217,74 @@ User conducted full interview test and found issues with AI response quality. De
 
 ---
 
+## Session 6 (2026-09-09) — Prompt Tuning & Model Migration
+
+### Problems Identified (from "api bugs.docx")
+
+Three issues observed during Session 5 full interview test:
+
+| # | Problem | Root Cause |
+|---|---|---|
+| 1 | AI didn't call out technically wrong answers | System prompt had no evaluation instruction — only "ask next question" |
+| 2 | AI didn't call out completely off-topic answers | Same — gently redirected instead of explicitly flagging |
+| 3 | Zero behavioural questions in 12-14 question interview | No instruction to mix in behavioural questions |
+
+Additional observation: Feedback engine correctly identified these issues and scored them 0 — so `feedback_generator.py` was fine. Only `interview_engine.py` needed fixing.
+
+### Fix — `backend/services/interview_engine.py` (system prompt only)
+
+Replaced the INTERVIEW RULES block with two new sections:
+
+**ANSWER EVALUATION** — 4 explicit cases with instructions:
+- Case 1 (Correct & Relevant) → Acknowledge briefly → deeper follow-up
+- Case 2 (Relevant but Technically Wrong) → Name the mistake → explain why → follow-up
+- Case 3 (Partially Relevant) → Acknowledge what was good → point out the gap → ask to complete
+- Case 4 (Completely Unrelated) → Explicitly call it off-topic → do not treat as valid answer → re-ask original question
+
+Each case includes a concrete example so Gemini has a reference for tone and directness.
+
+**BEHAVIOURAL QUESTIONS** — Forces one behavioural question after every 3-4 technical questions, tied to the candidate's actual experience.
+
+### Model Migration — All service files
+
+`gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-3.6-flash` (as directed by Google's deprecation error message)
+
+| Old Model | Issue |
+|---|---|
+| `gemini-2.5-flash` | Free tier: 20 req/day — burns out in one test session |
+| `gemini-2.0-flash` | Fully deprecated — `404 NOT_FOUND` from API |
+| `gemini-3.6-flash` | Current GA model — **in use now** |
+
+### Temperature Parameter Removed — All service files
+
+Gemini 3.x models deprecated `temperature`. It is silently ignored if passed.
+Removed from: `resume_parser.py` (was 0.1), `feedback_generator.py` (was 0.2), `interview_engine.py` (was 0.7).
+
+Impact: None. `response_schema` handles output structure for parser and feedback. Gemini 3.x handles conversation variation internally for the interview engine.
+
+### 503 UNAVAILABLE at end of session
+
+`gemini-3.6-flash` returned `503 UNAVAILABLE` during the resume upload test — this is a transient Google server-side overload, not a code bug. Testing deferred to next session.
+
+---
+
 ## Current State / Where We Left Off
 
-**Backend — Complete (pending prompt tuning)**
-- [x] `config.py` — done (load_dotenv path fix applied)
+**Backend — Complete (prompt tuning applied, full test pending)**
+- [x] `config.py` — done
 - [x] `models/resume.py` — done
 - [x] `requirements.txt` — done
 - [x] `backend/__init__.py` — done
 - [x] `models/__init__.py`, `services/__init__.py`, `routers/__init__.py` — done
-- [x] `services/resume_parser.py` — done
+- [x] `services/resume_parser.py` — done (temperature removed)
 - [x] `services/session_manager.py` — done
-- [x] `services/interview_engine.py` — done (prompt tuning pending)
-- [x] `services/feedback_generator.py` — done (prompt tuning pending)
+- [x] `services/interview_engine.py` — done (prompt tuning applied ✅)
+- [x] `services/feedback_generator.py` — done (temperature removed)
 - [x] `routers/resume.py` — done
 - [x] `routers/interview.py` — done
 - [x] `main.py` — done
-- [ ] Prompt tuning — `interview_engine.py` + `feedback_generator.py` ← **NEXT** (pending user's observation documents)
+- [ ] **Full re-test of all 4 endpoints** ← **NEXT** (blocked by 503, retry tomorrow)
+- [ ] Verify prompt fix: wrong answer and off-topic answer scenarios from "api bugs.docx"
 - [ ] `routers/websocket.py` — deferred to frontend phase
 
 **Frontend** — Not started yet

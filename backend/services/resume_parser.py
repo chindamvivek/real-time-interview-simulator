@@ -102,7 +102,7 @@ def parse_resume_to_json(file_stream: io.BytesIO, filename: str) -> ResumeData:
             ),
             response_mime_type="application/json",
             response_schema=ResumeData,
-            temperature=0.1,  # low temperature: factual extraction, not creative generation
+            # temperature is deprecated in Gemini 3.x — removed
         ),
     )
 

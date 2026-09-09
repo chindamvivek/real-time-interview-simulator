@@ -59,7 +59,7 @@ def generate_feedback(session_id: str) -> FeedbackReport:
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=FeedbackReport,
-            temperature=0.2,
+            # temperature is deprecated in Gemini 3.x — removed
         ),
     )
     # Return parsed Pydantic model with fallback

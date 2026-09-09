@@ -16,6 +16,7 @@ env/
 .env.example
 backend/.env.example
 instruction.md
+api bugs.docx
 
 # Operating System files
 .DS_Store
